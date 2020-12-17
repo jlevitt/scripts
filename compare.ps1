@@ -28,19 +28,10 @@ function pyapi($resource, $fields="")
         |% { $_.Replace('/"', '"') }
 }
 
-function Filter-MenuItems($json)
+function Sanitize($resource, $json)
 {
-    $json | jq "._embedded.menu_items | sort_by(.id) | .[] | del(._embedded.option_sets) | del(._embedded.price_levels[].barcodes) | del(.barcodes)"
-}
-
-function Filter-MenuModifiers($json)
-{
-    $json | jq "._embedded.modifiers | sort_by(.id) | .[] | del(._embedded.option_sets) | del(._embedded.price_levels[].barcodes) | del(.barcodes)"
-}
-
-function Filter-MenuModifierGroups($json)
-{
-    $json | jq -f modifier-groups.jq
+    $filterPath = "$($resource.Replace("/", "_")).jq"
+    $json | jq -f $filterPath
 }
 
 function run($resource)
@@ -59,26 +50,8 @@ function run($resource)
     $aPath = "diffs\$($resource.Replace("/", "_")).a.json"
     $bPath = "diffs\$($resource.Replace("/", "_")).b.json"
 
-    if ($resource -eq "menu/modifiers")
-    {
-        Filter-MenuModifiers $(pyapi "/$resource") > $aPath
-        Filter-MenuModifiers $(goapi "/$resource") > $bPath
-    }
-    elseif ($resource -eq "menu/items")
-    {
-        Filter-MenuItems $(pyapi "/$resource") > $aPath
-        Filter-MenuItems $(goapi "/$resource") > $bPath
-    }
-    elseif ($resource -eq "menu/modifier_groups")
-    {
-        Filter-MenuModifierGroups $(pyapi "/$resource") > $aPath
-        Filter-MenuModifierGroups $(goapi "/$resource") > $bPath
-    }
-    else
-    {
-        $(pyapi "/$resource") > $aPath
-        $(goapi "/$resource") > $bPath
-    }
+    Sanitize $resource $(pyapi "/$resource") > $aPath
+    Sanitize $resource $(goapi "/$resource") > $bPath
     kdiff3 $aPath $bPath
 }
 
