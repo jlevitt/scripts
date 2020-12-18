@@ -54,7 +54,7 @@ function Sanitize($resource, $json)
     if (Test-Path $filterPath)
     {
         $json `
-            | jq -f $filterPath `
+            | jq -s -f $filterPath `
             |% { $_.Replace("$PY_URL", "{{url}}") } `
             |% { $_.Replace('/"', '"') } `
             |% { $_.Replace("$GO_URL", "{{url}}") } `
@@ -62,7 +62,7 @@ function Sanitize($resource, $json)
     elseif (Test-Path $detailsPath)
     {
         $json `
-            | jq -f $detailsPath `
+            | jq -s -f $detailsPath `
             |% { $_.Replace("$PY_URL", "{{url}}") } `
             |% { $_.Replace('/"', '"') } `
             |% { $_.Replace("$GO_URL", "{{url}}") } `
