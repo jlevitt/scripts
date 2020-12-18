@@ -1,1 +1,1 @@
-._embedded.modifier_groups | sort_by(.id) | .[] | del(._embedded.modifiers[]._embedded.option_sets) | del(._embedded.modifiers[]._embedded.price_levels[].barcodes) | del(._embedded.modifiers[].barcodes) | setpath(["_embedded", "modifiers"]; ._embedded.modifiers | sort_by(.id))
+[.] | sort_by(.id) | .[] | del(._embedded.modifiers[]._embedded.option_sets) | del(._embedded.modifiers[]._embedded.price_levels[].barcodes) | del(._embedded.modifiers[].barcodes) | setpath(["_embedded", "modifiers"]; ._embedded.modifiers | sort_by(.id))

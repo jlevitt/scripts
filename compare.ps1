@@ -2,36 +2,40 @@ param(
     $resource
 )
 
-function goapi($resource, $fields)
-{
-    if ($fields)
-    {
-        $fields = "?fields=$fields"
-    }
-
-    [string]::new($(curl "$GO_URL/1.0/locations/brink/$resource$fields" -Headers @{"Api-Key" = $API_KEY}).Content) `
-        | jq . `
-        |% { $_.Replace("$GO_URL/1.0/locations/brink", "{{url}}") }
+$selects = @{
+    "menu/items" = "._embedded.menu_items[]";
+    "menu/modifiers" = "._embedded.modifiers[]";
+    "menu/modifier_groups" = "._embedded.modifier_groups[]"
 }
 
-function pyapi($resource, $fields="")
+function fetch($baseUrl, $resource)
 {
-    if ($fields)
+    $result = @()
+    $nextUrl = "$baseUrl/$resource"
+
+    $selectEntity = $selects[$resource]
+
+    while ($nextUrl -ne "null")
     {
-        $fields = "?fields=$fields"
+        Write-Host "Fetching $nextUrl"
+        $response = [string]::new($(curl $nextUrl -Headers @{"Api-Key" = $API_KEY}).Content)
+        $nextUrl = $response | jq -r "._links.next.href"
+        $result += $($response `
+            | jq $selectEntity `
+            | Join-String -NewLine)
     }
 
-    [string]::new($(curl "$PY_URL/1.0/locations/BGTzMTMk/$resource$fields" -Headers @{"Api-Key" = $API_KEY}).Content) `
-        | jq . `
-        |% { $_.Replace("$PY_URL/1.0/locations/BGTzMTMk", "{{url}}") } `
-        |% { $_.Replace("/?", "?") } `
-        |% { $_.Replace('/"', '"') }
+    $result
 }
 
 function Sanitize($resource, $json)
 {
     $filterPath = "$($resource.Replace("/", "_")).jq"
-    $json | jq -f $filterPath
+    $json `
+        | jq -f $filterPath `
+        |% { $_.Replace("$PY_URL", "{{url}}") } `
+        |% { $_.Replace('/"', '"') } `
+        |% { $_.Replace("$GO_URL", "{{url}}") } `
 }
 
 function run($resource)
@@ -50,8 +54,11 @@ function run($resource)
     $aPath = "diffs\$($resource.Replace("/", "_")).a.json"
     $bPath = "diffs\$($resource.Replace("/", "_")).b.json"
 
-    Sanitize $resource $(pyapi "/$resource") > $aPath
-    Sanitize $resource $(goapi "/$resource") > $bPath
+    #fetch $GO_URL "$resource" > $bPath
+    #fetch $PY_URL "$resource" > $bPath
+
+    Sanitize $resource $(fetch $PY_URL "$resource") > $aPath
+    Sanitize $resource $(fetch $GO_URL  "$resource") > $bPath
     kdiff3 $aPath $bPath
 }
 
