@@ -8,6 +8,25 @@ $selects = @{
     "menu/modifier_groups" = "._embedded.modifier_groups[]"
 }
 
+function getSelect($resource)
+{
+    $selectEntity = $selects[$resource]
+    if ($selectEntity -ne $null)
+    {
+        return $selectEntity
+    }
+
+    $resource = [regex]::Replace($resource, "/[^/]*$", "/{{id}}")
+    Write-Host "Resource: $resource"
+    $selectEntity = $selects[$resource]
+    if ($selectEntity -ne $null)
+    {
+        return $selectEntity
+    }
+
+    "."
+}
+
 function fetch($baseUrl, $resource)
 {
     $result = @()
@@ -31,11 +50,31 @@ function fetch($baseUrl, $resource)
 function Sanitize($resource, $json)
 {
     $filterPath = "$($resource.Replace("/", "_")).jq"
-    $json `
-        | jq -f $filterPath `
-        |% { $_.Replace("$PY_URL", "{{url}}") } `
-        |% { $_.Replace('/"', '"') } `
-        |% { $_.Replace("$GO_URL", "{{url}}") } `
+    $detailsPath = [regex]::Replace($filterPath, "_[^_.]*\.jq", "_details.jq")
+    if (Test-Path $filterPath)
+    {
+        $json `
+            | jq -f $filterPath `
+            |% { $_.Replace("$PY_URL", "{{url}}") } `
+            |% { $_.Replace('/"', '"') } `
+            |% { $_.Replace("$GO_URL", "{{url}}") } `
+    }
+    elseif (Test-Path $detailsPath)
+    {
+        $json `
+            | jq -f $detailsPath `
+            |% { $_.Replace("$PY_URL", "{{url}}") } `
+            |% { $_.Replace('/"', '"') } `
+            |% { $_.Replace("$GO_URL", "{{url}}") } `
+    }
+    else
+    {
+        $json `
+            | jq "." `
+            |% { $_.Replace("$PY_URL", "{{url}}") } `
+            |% { $_.Replace('/"', '"') } `
+            |% { $_.Replace("$GO_URL", "{{url}}") } `
+    }
 }
 
 function run($resource)
@@ -54,8 +93,8 @@ function run($resource)
     $aPath = "diffs\$($resource.Replace("/", "_")).a.json"
     $bPath = "diffs\$($resource.Replace("/", "_")).b.json"
 
-    #fetch $GO_URL "$resource" > $bPath
-    #fetch $PY_URL "$resource" > $bPath
+    # fetch $GO_URL "$resource" > $bPath
+    # fetch $PY_URL "$resource" > $bPath
 
     Sanitize $resource $(fetch $PY_URL "$resource") > $aPath
     Sanitize $resource $(fetch $GO_URL  "$resource") > $bPath
