@@ -79,19 +79,17 @@ function Sanitize($resource, $json)
 
 function run($resource)
 {
-    mysql -h 127.0.0.1 -u root -P 3310 --password=$MYSQL_PASSWORD -e "update agent_master.store_scheduled_tasks set next_run=now(), start_time=null where store_id=5 and name = 'menu';"
-
     $dir = [System.IO.Path]::GetDirectoryName($resource)
     if ($dir)
     {
         mkdir -Force -p $dir | Out-Null
     }
 
-    mkdir -p diffs -force | Out-Null
-    rm -r diffs\*
-
     $aPath = "diffs\$($resource.Replace("/", "_")).a.json"
     $bPath = "diffs\$($resource.Replace("/", "_")).b.json"
+
+    rm $aPath -Force
+    rm $bPath -Force
 
     # fetch $GO_URL "$resource" > $bPath
     # fetch $PY_URL "$resource" > $bPath
