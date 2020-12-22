@@ -1,5 +1,6 @@
 param(
-    $resource
+    $resource,
+    $version = "1.0"
 )
 
 $selects = @{
@@ -88,11 +89,14 @@ function run($resource)
     $aPath = "diffs\$($resource.Replace("/", "_")).a.json"
     $bPath = "diffs\$($resource.Replace("/", "_")).b.json"
 
-    rm $aPath -Force
-    rm $bPath -Force
+    rm $aPath -ErrorAction SilentlyContinue
+    rm $bPath -ErrorAction SilentlyContinue
 
     # fetch $GO_URL "$resource" > $bPath
     # fetch $PY_URL "$resource" > $bPath
+
+    $PY_URL = $PY_URL.Replace("{{version}}", $version)
+    $GO_URL = $GO_URL.Replace("{{version}}", $version)
 
     Sanitize $resource $(fetch $PY_URL "$resource") > $aPath
     Sanitize $resource $(fetch $GO_URL  "$resource") > $bPath
