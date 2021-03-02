@@ -7,6 +7,7 @@ $selects = @{
     "menu/items" = "._embedded.menu_items[]";
     "menu/modifiers" = "._embedded.modifiers[]";
     "menu/modifier_groups" = "._embedded.modifier_groups[]"
+    "menu/combos" = "._embedded.menu_combos[]"
 }
 
 function getSelect($resource)
