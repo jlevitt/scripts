@@ -1,6 +1,7 @@
 param(
     $resource,
-    $version = "1.0"
+    $version = "1.0",
+	[switch]$force = $false
 )
 
 $selects = @{
@@ -90,7 +91,11 @@ function run($resource)
     $aPath = "diffs\$($resource.Replace("/", "_")).a.json"
     $bPath = "diffs\$($resource.Replace("/", "_")).b.json"
 
-    rm $aPath -ErrorAction SilentlyContinue
+
+	if ($force)
+	{
+		rm $aPath -ErrorAction SilentlyContinue
+	}
     rm $bPath -ErrorAction SilentlyContinue
 
     # fetch $GO_URL "$resource" > $bPath
@@ -99,7 +104,14 @@ function run($resource)
     $PY_URL = $PY_URL.Replace("{{version}}", $version)
     $GO_URL = $GO_URL.Replace("{{version}}", $version)
 
-    Sanitize $resource $(fetch $PY_URL "$resource") > $aPath
+	if (Test-Path $aPath)
+	{
+		Write-Host "Skipping Brink download..."
+	}
+	else
+	{
+		Sanitize $resource $(fetch $PY_URL "$resource") > $aPath
+	}
     Sanitize $resource $(fetch $GO_URL  "$resource") > $bPath
     kdiff3 $aPath $bPath
 }
