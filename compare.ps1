@@ -50,34 +50,43 @@ function fetch($baseUrl, $resource)
     $result
 }
 
-function Sanitize($resource, $json)
+function Sanitize($resource, $json, $side)
 {
-    $filterPath = "$($resource.Replace("/", "_")).jq"
-    $detailsPath = [regex]::Replace($filterPath, "_[^_.]*\.jq", "_details.jq")
-    if (Test-Path $filterPath)
+    $sharedFilterPath = "$($resource.Replace("/", "_")).jq"
+    $sharedDetailsPath = [regex]::Replace($sharedFilterPath, "_[^_.]*\.jq", "_details.jq")
+    if (Test-Path $sharedFilterPath)
     {
-        $json `
-            | jq -s -f $filterPath `
-            |% { $_.Replace("$PY_URL", "{{url}}") } `
-            |% { $_.Replace('/"', '"') } `
-            |% { $_.Replace("$GO_URL", "{{url}}") } `
+        $json = $json | jq -s -f $sharedFilterPath
     }
-    elseif (Test-Path $detailsPath)
+    elseif (Test-Path $sharedDetailsPath)
     {
-        $json `
-            | jq -s -f $detailsPath `
-            |% { $_.Replace("$PY_URL", "{{url}}") } `
-            |% { $_.Replace('/"', '"') } `
-            |% { $_.Replace("$GO_URL", "{{url}}") } `
+        $json = $json | jq -s -f $sharedDetailsPath
     }
     else
     {
-        $json `
-            | jq "." `
-            |% { $_.Replace("$PY_URL", "{{url}}") } `
-            |% { $_.Replace('/"', '"') } `
-            |% { $_.Replace("$GO_URL", "{{url}}") } `
+        $json = $json | jq "."
     }
+
+    $sideFilterPath = "$($resource.Replace("/", "_"))_$side.jq"
+    $sideDetailsPath = [regex]::Replace($sideFilterPath, "_[^_.]*\.jq", "_details_$side.jq")
+    if (Test-Path $sideFilterPath)
+    {
+        $json = $json | jq -f $sideFilterPath
+    }
+    elseif (Test-Path $sideDetailsPath)
+    {
+        $json = $json | jq -f $sideDetailsPath
+    }
+
+    SanitizeUrl($json)
+}
+
+function SanitizeUrl($json)
+{
+    $json `
+        |% { $_.Replace("$PY_URL", "{{url}}") } `
+        |% { $_.Replace('/"', '"') } `
+        |% { $_.Replace("$GO_URL", "{{url}}") } `
 }
 
 function run($resource)
@@ -110,9 +119,9 @@ function run($resource)
 	}
 	else
 	{
-		Sanitize $resource $(fetch $PY_URL "$resource") > $aPath
+		Sanitize $resource $(fetch $PY_URL "$resource") "a" > $aPath
 	}
-    Sanitize $resource $(fetch $GO_URL  "$resource") > $bPath
+    Sanitize $resource $(fetch $GO_URL  "$resource") "b" > $bPath
     kdiff3 $aPath $bPath
 }
 
