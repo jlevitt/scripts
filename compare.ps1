@@ -60,7 +60,7 @@ function Sanitize($resource, $json, $side)
     }
     elseif (Test-Path $sharedDetailsPath)
     {
-        $json = $json | jq -s -f $sharedDetailsPath
+        $json = $json | jq -f $sharedDetailsPath
     }
     else
     {
@@ -87,6 +87,8 @@ function SanitizeUrl($json)
         |% { $_.Replace("$PY_URL", "{{url}}") } `
         |% { $_.Replace('/"', '"') } `
         |% { $_.Replace("$GO_URL", "{{url}}") } `
+        |% { $_.Replace("N-", "") } `
+        |% { $_.Replace("/?", "?") } `
 }
 
 function run($resource)
