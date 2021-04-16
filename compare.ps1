@@ -22,7 +22,6 @@ function getSelect($resource)
     }
 
     $resource = [regex]::Replace($resource, "/[^/]*$", "/{{id}}")
-    Write-Host "Resource: $resource"
     $selectEntity = $selects[$resource]
     if ($selectEntity -ne $null)
     {
@@ -42,8 +41,9 @@ function fetch($baseUrl, $resource)
 
     while ($nextUrl -ne "null" -and $pages -lt $MaxPages)
     {
-        Write-Host "Fetching $nextUrl"
+		Write-Host -NoNewline "Fetching $nextUrl..."
         $response = [string]::new($(curl $nextUrl -Headers @{"Api-Key" = $API_KEY}).Content)
+		Write-Host " done."
         $nextUrl = $response | jq -r "._links.next.href"
         $result += $($response `
             | jq $selectEntity `
@@ -56,31 +56,33 @@ function fetch($baseUrl, $resource)
 
 function Sanitize($resource, $json, $side)
 {
-    $sharedFilterPath = "$($resource.Replace("/", "_")).jq"
-    $sharedDetailsPath = [regex]::Replace($sharedFilterPath, "_[^_.]*\.jq", "_details.jq")
+    $sharedFilterListPath = "$($resource.Replace("/", "_")).jq"
+	$parentResource = $resource -replace "/[^/]*$"
+    $sharedFilterDetailsPath = "$($parentResource.Replace("/", "_")).jq"
+
+	$sharedFilterPath = if (Test-Path $sharedFilterListPath) { $sharedFilterListPath } else { $sharedFilterDetailsPath }
+
     if (Test-Path $sharedFilterPath)
     {
+		Write-Host "Using filter '$sharedFilterPath'."
         $json = $json | jq -s -f $sharedFilterPath
-    }
-    elseif (Test-Path $sharedDetailsPath)
-    {
-        $json = $json | jq -f $sharedDetailsPath
     }
     else
     {
+		Write-Host "No filter found."
         $json = $json | jq "."
     }
 
-    $sideFilterPath = "$($resource.Replace("/", "_"))_$side.jq"
-    $sideDetailsPath = [regex]::Replace($sideFilterPath, "_[^_.]*\.jq", "_details_$side.jq")
-    if (Test-Path $sideFilterPath)
-    {
-        $json = $json | jq -f $sideFilterPath
-    }
-    elseif (Test-Path $sideDetailsPath)
-    {
-        $json = $json | jq -f $sideDetailsPath
-    }
+#    $sideFilterPath = "$($resource.Replace("/", "_"))_$side.jq"
+#    $sideDetailsPath = [regex]::Replace($sideFilterPath, "_[^_.]*\.jq", "_details_$side.jq")
+#    if (Test-Path $sideFilterPath)
+#    {
+#        $json = $json | jq -f $sideFilterPath
+#    }
+#    elseif (Test-Path $sideDetailsPath)
+#    {
+#        $json = $json | jq -f $sideDetailsPath
+#    }
 
     SanitizeUrl($json)
 }
@@ -103,32 +105,35 @@ function run($resource)
         mkdir -Force -p $dir | Out-Null
     }
 
-    $aPath = "diffs\$($resource.Replace("/", "_")).a.json"
-    $bPath = "diffs\$($resource.Replace("/", "_")).b.json"
+    $aPathRaw = "diffs\$($resource.Replace("/", "_")).a.raw.json"
+    $bPathRaw = "diffs\$($resource.Replace("/", "_")).b.raw.json"
+    $aPathProcessed = "diffs\$($resource.Replace("/", "_")).a.json"
+    $bPathProcessed = "diffs\$($resource.Replace("/", "_")).b.json"
 
 
 	if ($Force)
 	{
-		rm $aPath -ErrorAction SilentlyContinue
+		rm $aPathRaw -ErrorAction SilentlyContinue
+		rm $bPathRaw -ErrorAction SilentlyContinue
 	}
-    rm $bPath -ErrorAction SilentlyContinue
-
-    # fetch $GO_URL "$resource" > $bPath
-    # fetch $PY_URL "$resource" > $bPath
 
     $PY_URL = $PY_URL.Replace("{{version}}", $Version)
     $GO_URL = $GO_URL.Replace("{{version}}", $Version)
 
-	if (Test-Path $aPath)
+	if (-not (Test-Path $aPathRaw))
 	{
-		Write-Host "Skipping Brink download..."
+		fetch $PY_URL "$resource" > $aPathRaw
 	}
-	else
+
+	if (-not (Test-Path $bPathRaw))
 	{
-		Sanitize $resource $(fetch $PY_URL "$resource") "a" > $aPath
+		fetch $GO_URL "$resource" > $bPathRaw
 	}
-    Sanitize $resource $(fetch $GO_URL  "$resource") "b" > $bPath
-    kdiff3 $aPath $bPath
+
+	Sanitize $resource "$(gc $aPathRaw)" "a" > $aPathProcessed
+    Sanitize $resource "$(gc $bPathRaw)" "b" > $bPathProcessed
+
+    kdiff3 $aPathProcessed $bPathProcessed
 }
 
 . .\env.ps1
