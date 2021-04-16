@@ -56,8 +56,9 @@ function fetch($baseUrl, $resource)
 
 function Sanitize($resource, $json, $side)
 {
-    $sharedFilterListPath = "$($resource.Replace("/", "_")).jq"
 	$parentResource = $resource -replace "/[^/]*$"
+
+    $sharedFilterListPath = "$($resource.Replace("/", "_")).jq"
     $sharedFilterDetailsPath = "$($parentResource.Replace("/", "_")).jq"
 
 	$sharedFilterPath = if (Test-Path $sharedFilterListPath) { $sharedFilterListPath } else { $sharedFilterDetailsPath }
@@ -65,24 +66,22 @@ function Sanitize($resource, $json, $side)
     if (Test-Path $sharedFilterPath)
     {
 		Write-Host "Using filter '$sharedFilterPath'."
-        $json = $json | jq -s -f $sharedFilterPath
+        $json = $json | jq --sort-keys -s -f $sharedFilterPath
     }
     else
     {
 		Write-Host "No filter found."
-        $json = $json | jq "."
+        $json = $json | jq --sort-keys "."
     }
 
-#    $sideFilterPath = "$($resource.Replace("/", "_"))_$side.jq"
-#    $sideDetailsPath = [regex]::Replace($sideFilterPath, "_[^_.]*\.jq", "_details_$side.jq")
-#    if (Test-Path $sideFilterPath)
-#    {
-#        $json = $json | jq -f $sideFilterPath
-#    }
-#    elseif (Test-Path $sideDetailsPath)
-#    {
-#        $json = $json | jq -f $sideDetailsPath
-#    }
+    $sideFilterListPath = "$($resource.Replace("/", "_"))_$side.jq"
+    $sideFilterDetailsPath = "$($parentResource.Replace("/", "_"))_$side.jq"
+	$sideFilterPath = if (Test-Path $sideFilterListPath) { $sideFilterListPath } else { $sideFilterDetailsPath }
+    if (Test-Path $sideFilterPath)
+    {
+		Write-Host "Using filter '$sideFilterPath'."
+        $json = $json | jq --sort-keys -s -f $sideFilterPath
+    }
 
     SanitizeUrl($json)
 }
