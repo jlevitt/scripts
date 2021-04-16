@@ -1,6 +1,6 @@
 .
     | del(._embedded.items[].sent)                                      # Python hardcodes to true, Go is null
-    | del(._embedded.items[]._embedded)                                 # Removed in 1.1
+    | del(._embedded.items[]._embedded.menu_item._embedded)             # Removed in 1.1
     | del(._embedded.items[]._embedded.menu_item.in_stock)              # Removed in 1.1
 
     | del(._embedded.voided_combos)                                     # New in go
