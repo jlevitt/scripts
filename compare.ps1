@@ -1,7 +1,8 @@
 param(
     $resource,
-    $version = "1.0",
-	[switch]$force = $false
+    $Version = "1.0",
+	[switch]$Force = $false,
+    [int]$MaxPages = 1000
 )
 
 $selects = @{
@@ -9,6 +10,7 @@ $selects = @{
     "menu/modifiers" = "._embedded.modifiers[]";
     "menu/modifier_groups" = "._embedded.modifier_groups[]"
     "menu/combos" = "._embedded.menu_combos[]"
+    "tickets" = "._embedded.tickets[]"
 }
 
 function getSelect($resource)
@@ -36,8 +38,9 @@ function fetch($baseUrl, $resource)
     $nextUrl = "$baseUrl/$resource"
 
     $selectEntity = $selects[$resource]
+    $pages = 0
 
-    while ($nextUrl -ne "null")
+    while ($nextUrl -ne "null" -and $pages -lt $MaxPages)
     {
         Write-Host "Fetching $nextUrl"
         $response = [string]::new($(curl $nextUrl -Headers @{"Api-Key" = $API_KEY}).Content)
@@ -45,6 +48,7 @@ function fetch($baseUrl, $resource)
         $result += $($response `
             | jq $selectEntity `
             | Join-String -NewLine)
+        $pages++
     }
 
     $result
@@ -103,7 +107,7 @@ function run($resource)
     $bPath = "diffs\$($resource.Replace("/", "_")).b.json"
 
 
-	if ($force)
+	if ($Force)
 	{
 		rm $aPath -ErrorAction SilentlyContinue
 	}
@@ -112,8 +116,8 @@ function run($resource)
     # fetch $GO_URL "$resource" > $bPath
     # fetch $PY_URL "$resource" > $bPath
 
-    $PY_URL = $PY_URL.Replace("{{version}}", $version)
-    $GO_URL = $GO_URL.Replace("{{version}}", $version)
+    $PY_URL = $PY_URL.Replace("{{version}}", $Version)
+    $GO_URL = $GO_URL.Replace("{{version}}", $Version)
 
 	if (Test-Path $aPath)
 	{
