@@ -63,6 +63,8 @@ function Sanitize($resource, $json, $side)
 
 	$sharedFilterPath = if (Test-Path $sharedFilterListPath) { $sharedFilterListPath } else { $sharedFilterDetailsPath }
 
+	Write-Host "Processing side $side..."
+
     if (Test-Path $sharedFilterPath)
     {
 		Write-Host "Using filter '$sharedFilterPath'."
@@ -84,6 +86,8 @@ function Sanitize($resource, $json, $side)
     }
 
     SanitizeUrl($json)
+
+	Write-Host
 }
 
 function SanitizeUrl($json)
