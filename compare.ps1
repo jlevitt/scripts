@@ -1,6 +1,6 @@
 param(
     $resource,
-    $Version = "1.0",
+    [string]$Version = "1.0",
 	[switch]$Force = $false,
     [int]$MaxPages = 1000
 )
@@ -56,35 +56,41 @@ function fetch($baseUrl, $resource)
 
 function Sanitize($resource, $json, $side)
 {
-    $sharedFilterListPath = "$($resource.Replace("/", "_")).jq"
+    $json = SanitizeUrl($json)
+
+    $v = $Version.Replace(".", "")
 	$parentResource = $resource -replace "/[^/]*$"
-    $sharedFilterDetailsPath = "$($parentResource.Replace("/", "_")).jq"
+
+    $sharedFilterListPath = "$($resource.Replace("/", "_"))_$v.jq"
+    $sharedFilterDetailsPath = "$($parentResource.Replace("/", "_"))_$v.jq"
 
 	$sharedFilterPath = if (Test-Path $sharedFilterListPath) { $sharedFilterListPath } else { $sharedFilterDetailsPath }
+
+	Write-Host "Processing side $side..."
 
     if (Test-Path $sharedFilterPath)
     {
 		Write-Host "Using filter '$sharedFilterPath'."
-        $json = $json | jq -s -f $sharedFilterPath
+        $json = $json | jq --sort-keys -s -f $sharedFilterPath
     }
     else
     {
 		Write-Host "No filter found."
-        $json = $json | jq "."
+        $json = $json | jq --sort-keys "."
     }
 
-#    $sideFilterPath = "$($resource.Replace("/", "_"))_$side.jq"
-#    $sideDetailsPath = [regex]::Replace($sideFilterPath, "_[^_.]*\.jq", "_details_$side.jq")
-#    if (Test-Path $sideFilterPath)
-#    {
-#        $json = $json | jq -f $sideFilterPath
-#    }
-#    elseif (Test-Path $sideDetailsPath)
-#    {
-#        $json = $json | jq -f $sideDetailsPath
-#    }
+    $sideFilterListPath = "$($resource.Replace("/", "_"))_$($v)_$side.jq"
+    $sideFilterDetailsPath = "$($parentResource.Replace("/", "_"))_$($v)_$side.jq"
+	$sideFilterPath = if (Test-Path $sideFilterListPath) { $sideFilterListPath } else { $sideFilterDetailsPath }
+    if (Test-Path $sideFilterPath)
+    {
+		Write-Host "Using filter '$sideFilterPath'."
+        $json = $json | jq --sort-keys -s -f $sideFilterPath
+    }
 
-    SanitizeUrl($json)
+	Write-Host
+
+    $json
 }
 
 function SanitizeUrl($json)
@@ -105,8 +111,10 @@ function run($resource)
         mkdir -Force -p $dir | Out-Null
     }
 
-    $aPathRaw = "diffs\$($resource.Replace("/", "_")).a.raw.json"
-    $bPathRaw = "diffs\$($resource.Replace("/", "_")).b.raw.json"
+    $v = $Version.Replace(".", "")
+
+    $aPathRaw = "diffs\$($resource.Replace("/", "_"))_$($v).a.raw.json"
+    $bPathRaw = "diffs\$($resource.Replace("/", "_"))_$($v).b.raw.json"
     $aPathProcessed = "diffs\$($resource.Replace("/", "_")).a.json"
     $bPathProcessed = "diffs\$($resource.Replace("/", "_")).b.json"
 
